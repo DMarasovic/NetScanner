@@ -69,11 +69,12 @@ int main(){
         printf("Port je OPEN\n");
     }
     else{
-        printf("%d\n", errno);
+        int error = errno;
+
+        printf("%d\n", error);
         printf("Razlog: %s\n", strerror(errno));
     }
     
-
     close(sockfd);
 
     return 0;
