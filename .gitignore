@@ -1,0 +1,16 @@
+# Compiled binaries
+netscanner
+*.exe
+
+# Object files
+*.o
+
+# Debug/build files
+*.out
+
+# VS Code
+.vscode/
+
+# OS junk
+.DS_Store
+Thumbs.db
