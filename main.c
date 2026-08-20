@@ -3,6 +3,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <errno.h>
+#include <string.h>
 
 int main(){
 
@@ -12,7 +14,7 @@ int main(){
 
     printf("Unesi IP adresu:" );
     scanf("%15s", ip);
-        
+   
     do{
         printf("Unesi port: ");
 
@@ -67,8 +69,10 @@ int main(){
         printf("Port je OPEN\n");
     }
     else{
-        printf("Konekcija je neuspjela");
+        printf("%d\n", errno);
+        printf("Razlog: %s\n", strerror(errno));
     }
+    
 
     close(sockfd);
 
