@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <fcntl.h>
+#include <poll.h>
 
 int main(){
 
@@ -12,7 +14,7 @@ int main(){
     int port;
     int scan_result;
 
-    printf("Unesi IP adresu:" );
+    printf("Unesi IP adresu: " );
     scanf("%15s", ip);
    
     do{
@@ -40,6 +42,21 @@ int main(){
         return 1;
     }
 
+    //No Blok Flag
+    int flags = fcntl(sockfd, F_GETFL, 0);
+    if (flags == -1){
+        printf("Greska pri citanju flagova: %s\n", strerror(errno));
+        close(sockfd);
+        return 1;
+    }
+
+    int fcntl_result = fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
+    if (fcntl_result == -1) {
+    printf("Greska pri postavljanju O_NONBLOCK: %s\n", strerror(errno));
+    close(sockfd);
+    return 1;
+    }
+
     struct sockaddr_in target = {0};
     
     target.sin_family = AF_INET;
@@ -59,23 +76,73 @@ int main(){
         return 1;
     }
     
+    //Poll()
+    struct pollfd pfd = {0};
+
+    pfd.fd = sockfd;
+    pfd.events = POLLOUT;
+
+    int timeout = 1000;
+    
     int result = connect(
         sockfd,
         (struct sockaddr *)&target,
         sizeof(target)
     );
 
+    //Provjera connect()
     if (result == 0){
         printf("Port je OPEN\n");
     }
-    else{
-        int error = errno;
 
-        printf("%d\n", error);
-        printf("Razlog: %s\n", strerror(errno));
+    else if (result == -1 && errno == EINPROGRESS){
+        printf("Konekcija je u procesu...\n");
+
+        int poll_result = poll(&pfd, 1, timeout);
+        
+        if (poll_result > 0){
+            int socket_error = 0;
+            socklen_t error_len = sizeof(socket_error);
+            
+            int get_result = getsockopt(
+                sockfd, 
+                SOL_SOCKET, 
+                SO_ERROR,
+                &socket_error,
+                &error_len
+            );
+
+            if (get_result == -1){
+                int error = errno;
+                printf("Greska u getsockopt: %s\n", strerror(error));
+            }
+            else if (socket_error == 0){
+                printf("Port je OPEN\n");
+            }
+            else if (socket_error == ECONNREFUSED){
+                printf("Port je CLOSED\n");
+            }
+            else{
+                printf("Connect greska: %s\n", strerror(socket_error));
+            }
+        }
+        else if (poll_result == 0){
+            printf("TIMEOUT\n");
+        }
+        else{
+            int error = errno;
+            printf("Poll greska: %s\n", strerror(error));
+        }
+    }
+
+    else if(result == -1 && errno != EINPROGRESS){
+        int error = errno;
+        printf("Connect greska: %s\n", strerror(error));
+        close(sockfd);
+        return 1;
     }
     
     close(sockfd);
-
+ 
     return 0;
 }
